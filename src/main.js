@@ -439,6 +439,7 @@ async function loadDetectionModel() {
 // TRANSLATION SERVICE
 // ==========================================
 
+
 async function translateText(text, from, to) {
   const cleanText = text.trim();
 
@@ -462,27 +463,30 @@ async function translateText(text, from, to) {
 
   for (const chunk of chunks) {
     const params = new URLSearchParams({
-      q: chunk,
-      langpair: `${from}|${to}`
+      client: 'gtx',
+      sl: from,
+      tl: to,
+      dt: 't',
+      q: chunk
     });
 
     const response = await fetch(
-      `${CONFIG.translationEndpoint}?${params}`
+      `https://translate.googleapis.com/translate_a/single?${params}`
     );
 
     if (!response.ok) {
-      throw new Error('Translation service unavailable.');
+      throw new Error('Google translation service unavailable.');
     }
 
     const data = await response.json();
 
-    if (data.responseStatus !== 200) {
-      throw new Error(
-        data.responseDetails || 'Translation request failed.'
-      );
+    if (!Array.isArray(data) || !Array.isArray(data[0])) {
+      throw new Error('Invalid translation response.');
     }
 
-    const translated = data.responseData?.translatedText;
+    const translated = data[0]
+      .map(segment => segment?.[0] || '')
+      .join('');
 
     if (!translated) {
       throw new Error('No translation was returned.');
