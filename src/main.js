@@ -20,6 +20,7 @@ const ocrResult = document.getElementById('ocrResult');
 const recognizedText = document.getElementById('recognizedText');
 const translationHistory = document.getElementById('translationHistory');
 const clearHistoryButton = document.getElementById('clearHistory');
+const downloadTranslationButton = document.getElementById('downloadTranslation');
 
 const imageUpload = document.getElementById('imageUpload');
 const uploadedImage = document.getElementById('uploadedImage');
@@ -257,6 +258,50 @@ function downloadCapturedImage() {
   document.body.removeChild(link);
 
   setStatus('Captured image downloaded successfully.');
+}
+
+function downloadTranslationText() {
+  const original = recognizedText.textContent.trim();
+  const translated = ocrResult.textContent.trim();
+
+  if (
+    !original ||
+    !translated ||
+    original === 'Your recognized text will appear here after scanning.' ||
+    translated === 'Your translated text will appear here after scanning.'
+  ) {
+    setStatus('Please scan or upload text before downloading.');
+    return;
+  }
+
+  const content = [
+    'VISIONTRANSLATE — TRANSLATION',
+    '',
+    'ORIGINAL TEXT:',
+    original,
+    '',
+    'TRANSLATED TEXT:',
+    translated
+  ].join('\n');
+
+  const file = new Blob(
+    [content],
+    { type: 'text/plain;charset=utf-8' }
+  );
+
+  const url = URL.createObjectURL(file);
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = `visiontranslate-translation-${Date.now()}.txt`;
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  URL.revokeObjectURL(url);
+
+  setStatus('Translation downloaded successfully.');
 }
 
 function handleImageUpload(event) {
@@ -958,6 +1003,11 @@ readAllButton.addEventListener('click', () => {
 
   speech(text);
 });
+
+downloadTranslationButton.addEventListener(
+  'click',
+  downloadTranslationText
+);
 
 targetLanguage.addEventListener(
   'change',
