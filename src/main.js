@@ -16,6 +16,7 @@ const statusBox = document.getElementById('status');
 const cameraStatus = document.getElementById('cameraStatus');
 const objectResults = document.getElementById('objectResults');
 const ocrResult = document.getElementById('ocrResult');
+const recognizedText = document.getElementById('recognizedText');
 
 const startButton = document.getElementById('startCamera');
 const stopButton = document.getElementById('stopCamera');
@@ -524,15 +525,16 @@ async function scanWrittenText() {
 
     const text = result.data.text.trim();
 
+    recognizedText.textContent = text;
+    
     if (!text) {
-      ocrResult.textContent =
-        'No readable text found. Try moving closer.';
+      recognizedText.textContent = 'No text recognized.';
+      ocrResult.textContent = 'No readable text found. Try moving closer.';
 
       setStatus('No text detected.');
 
       return;
     }
-
     const sourceCode = TRANSLATION_LANGUAGES[sourceLanguage.value];
 
     setStatus('Translating recognized text...');
