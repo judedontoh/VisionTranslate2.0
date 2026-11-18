@@ -728,3 +728,86 @@ a:focus-visible {
 .camera-container {
   position: relative;
 }
+
+/* Image Upload & Translation */
+
+.upload-section {
+  margin-top: 28px;
+  padding: 24px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+}
+
+.upload-heading {
+  margin-bottom: 18px;
+}
+
+.upload-heading h3 {
+  margin: 0 0 6px;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.upload-heading p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.upload-label {
+  display: inline-block;
+  margin-bottom: 10px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+#imageUpload {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  padding: 12px;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  font: inherit;
+}
+
+.upload-preview {
+  margin-top: 18px;
+}
+
+#uploadedImage {
+  display: block;
+  max-width: 100%;
+  max-height: 350px;
+  margin: 0 auto;
+  object-fit: contain;
+  border-radius: 12px;
+}
+
+#uploadedImage[hidden] {
+  display: none;
+}
+
+.upload-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+@media (max-width: 600px) {
+  .upload-section {
+    padding: 18px;
+  }
+
+  .upload-actions {
+    flex-direction: column;
+  }
+
+  .upload-actions button {
+    width: 100%;
+  }
+}

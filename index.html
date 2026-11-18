@@ -227,6 +227,51 @@
   </div>
 </div>
 
+<!-- Image Upload & Translation -->
+<div class="upload-section">
+  <div class="upload-heading">
+    <h3>Translate from an image</h3>
+    <p>Upload a photo containing text to recognize and translate it.</p>
+  </div>
+
+  <label class="upload-label" for="imageUpload">
+    Choose an image
+  </label>
+
+  <input
+    type="file"
+    id="imageUpload"
+    accept="image/*"
+  />
+
+  <div class="upload-preview">
+    <img
+      id="uploadedImage"
+      alt="Uploaded image preview"
+      hidden
+    />
+  </div>
+
+  <div class="upload-actions">
+    <button
+      class="button button-primary"
+      id="scanUploadedImage"
+      type="button"
+      disabled
+    >
+      Scan uploaded image
+    </button>
+
+    <button
+      class="button button-secondary"
+      id="clearUploadedImage"
+      type="button"
+      hidden
+    >
+      Remove image
+    </button>
+  </div>
+</div>
 
 <div class="history-section">
   <div class="history-header">

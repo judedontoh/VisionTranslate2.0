@@ -21,6 +21,11 @@ const recognizedText = document.getElementById('recognizedText');
 const translationHistory = document.getElementById('translationHistory');
 const clearHistoryButton = document.getElementById('clearHistory');
 
+const imageUpload = document.getElementById('imageUpload');
+const uploadedImage = document.getElementById('uploadedImage');
+const scanUploadedImageButton = document.getElementById('scanUploadedImage');
+const clearUploadedImageButton = document.getElementById('clearUploadedImage');
+
 const startButton = document.getElementById('startCamera');
 const stopButton = document.getElementById('stopCamera');
 const captureButton = document.getElementById('captureImage');
@@ -38,6 +43,7 @@ const cameraPlaceholder = document.querySelector('.camera-placeholder');
 
 let stream = null;
 let capturedImageData = null;
+let uploadedImageData = null;
 let model = null;
 let scanTimer = null;
 let scanning = false;
@@ -251,6 +257,119 @@ function downloadCapturedImage() {
   document.body.removeChild(link);
 
   setStatus('Captured image downloaded successfully.');
+}
+
+function handleImageUpload(event) {
+  const file = event.target.files[0];
+
+  if (!file) return;
+
+  if (!file.type.startsWith('image/')) {
+    setStatus('Please select a valid image file.');
+    imageUpload.value = '';
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = () => {
+    uploadedImageData = reader.result;
+    uploadedImage.src = uploadedImageData;
+
+    uploadedImage.onload = () => {
+      uploadedImage.hidden = false;
+      scanUploadedImageButton.disabled = false;
+      clearUploadedImageButton.hidden = false;
+
+      setStatus('Image uploaded successfully. Ready to scan.');
+    };
+
+    uploadedImage.onerror = () => {
+      setStatus('Unable to display this image. Try another file.');
+      uploadedImageData = null;
+      scanUploadedImageButton.disabled = true;
+    };
+  };
+
+  reader.onerror = () => {
+    setStatus('Unable to read the selected image.');
+  };
+
+  reader.readAsDataURL(file);
+}
+
+async function scanUploadedImageText() {
+  if (!uploadedImageData) {
+    setStatus('Please upload an image first.');
+    return;
+  }
+
+  if (typeof window.Tesseract === 'undefined') {
+    setStatus('OCR library could not be loaded. Check your internet connection.');
+    return;
+  }
+
+  try {
+    scanUploadedImageButton.disabled = true;
+
+    setStatus('Reading text from uploaded image...');
+
+    const result = await window.Tesseract.recognize(
+      uploadedImage,
+      OCR_LANGUAGES[sourceLanguage.value]
+    );
+
+    const text = result.data.text.trim();
+
+    recognizedText.textContent = text;
+
+    if (!text) {
+      recognizedText.textContent = 'No text recognized.';
+      ocrResult.textContent = 'No readable text found. Try another image.';
+      setStatus('No text detected in the uploaded image.');
+      return;
+    }
+
+    const sourceCode = TRANSLATION_LANGUAGES[sourceLanguage.value];
+
+    setStatus('Translating recognized text...');
+
+    ocrTranslation = await translateText(
+      text,
+      sourceCode,
+      targetLanguage.value
+    );
+
+    ocrResult.textContent = ocrTranslation;
+
+    saveTranslationToHistory(text, ocrTranslation);
+
+    setStatus('Image text translated successfully.');
+
+  } catch (error) {
+    console.error('Uploaded image scanning error:', error);
+
+    setStatus(`Image scan error: ${error.message}`);
+
+    ocrResult.textContent = 'Unable to scan or translate this image.';
+
+  } finally {
+    scanUploadedImageButton.disabled = false;
+  }
+}
+
+function clearUploadedImage() {
+  uploadedImageData = null;
+
+  uploadedImage.src = '';
+  uploadedImage.hidden = true;
+
+  imageUpload.value = '';
+
+  scanUploadedImageButton.disabled = true;
+  clearUploadedImageButton.hidden = true;
+
+  setStatus('Uploaded image removed.');
 }
 
 // ==========================================
@@ -816,6 +935,12 @@ captureButton.addEventListener('click', captureCameraImage);
 retakeButton.addEventListener('click', retakeCameraImage);
 
 downloadButton.addEventListener('click', downloadCapturedImage);
+
+imageUpload.addEventListener('change', handleImageUpload);
+
+scanUploadedImageButton.addEventListener('click', scanUploadedImageText);
+
+clearUploadedImageButton.addEventListener('click', clearUploadedImage);
 
 scanButton.addEventListener('click', scanWrittenText);
 
