@@ -983,6 +983,7 @@ async function scanWrittenText() {
 
 const HISTORY_STORAGE_KEY = 'visionTranslateHistory';
 const MEMORY_STORAGE_KEY = 'visionTranslateMemory';
+const MAX_TRANSLATION_MEMORY_ENTRIES = 500;
 
 let translationHistoryItems = [];
 
@@ -1017,10 +1018,14 @@ function loadTranslationMemory() {
 }
 
 
+
 function saveToTranslationMemory(original, translated, from, to) {
   if (!original || !translated || !from || !to) return;
 
-  const key = `${from}|${to}|${original.trim().toLowerCase()}`;
+  const key = `${from}|${to}|${normalizeTranslationText(original)}`;
+
+  // Refresh the entry so it becomes the newest item.
+  delete translationMemory[key];
 
   translationMemory[key] = {
     original: original.trim(),
@@ -1029,6 +1034,16 @@ function saveToTranslationMemory(original, translated, from, to) {
     to,
     savedAt: new Date().toISOString()
   };
+
+  // Remove the oldest entries if memory exceeds its limit.
+  while (
+    Object.keys(translationMemory).length >
+    MAX_TRANSLATION_MEMORY_ENTRIES
+  ) {
+    const oldestKey = Object.keys(translationMemory)[0];
+
+    delete translationMemory[oldestKey];
+  }
 
   try {
     localStorage.setItem(
@@ -1044,11 +1059,19 @@ function saveToTranslationMemory(original, translated, from, to) {
 function getFromTranslationMemory(original, from, to) {
   if (!original || !from || !to) return null;
 
-  const key = `${from}|${to}|${original.trim().toLowerCase()}`;
+  const key = `${from}|${to}|${normalizeTranslationText(original)}`;
 
   const remembered = translationMemory[key];
 
   return remembered ? remembered.translated : null;
+}
+
+function normalizeTranslationText(text) {
+  return text
+    .normalize('NFC')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
 }
 
 function renderTranslationHistory() {
