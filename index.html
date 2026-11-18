@@ -4,35 +4,55 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#06121f">
-  <meta name="description" content="VisionTranslate uses AI-powered object recognition, OCR and translation to help you understand the world around you.">
+  <meta name="theme-color" content="#f7f8fc">
+  <meta name="description" content="VisionTranslate uses AI to recognize objects, read text and translate the world around you.">
+  <title>VisionTranslate — AI Visual Translator</title>
 
-  <title>VisionTranslate — AI Vision Scanner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="/src/styles/main.css">
-
-  <!-- AI and OCR libraries -->
   <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
-  <!-- Existing application script -->
   <script type="module" src="/src/main.js"></script>
 </head>
 
 <body>
-  <header>
-    <div class="logo">✧ VISIONTRANSLATE</div>
-    <div class="subtitle">AI VISION • LIVE TRANSLATION • REAL WORLD</div>
-  </header>
+  <div class="app-shell">
 
-  <main>
-    <section class="panel" aria-labelledby="language-heading">
-      <h2 class="section-title" id="language-heading">◈ Language configuration</h2>
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="VisionTranslate home">
+        <span class="brand-mark">V</span>
+        <span>vision<span class="brand-light">translate</span></span>
+      </a>
 
-      <div class="controls">
+      <div class="topbar-right">
+        <span class="system-indicator">
+          <span class="indicator-dot"></span>
+          AI workspace
+        </span>
+        <span class="avatar">VT</span>
+      </div>
+    </header>
+
+    <main class="main-content">
+
+      <section class="welcome-section">
         <div>
-          <label for="sourceLanguage">Text source language</label>
+          <p class="eyebrow">YOUR WORLD, UNDERSTOOD</p>
+          <h1>See the world in <span>your language.</span></h1>
+          <p class="welcome-description">
+            Point your camera at anything. Recognize objects,
+            read text and translate what you see in real time.
+          </p>
+        </div>
+      </section>
+
+      <section class="language-panel" aria-label="Translation languages">
+        <div class="language-field">
+          <label for="sourceLanguage">SOURCE LANGUAGE</label>
           <select id="sourceLanguage" name="sourceLanguage">
             <option value="eng">English</option>
             <option value="spa">Spanish</option>
@@ -43,8 +63,10 @@
           </select>
         </div>
 
-        <div>
-          <label for="targetLanguage">Translate into</label>
+        <div class="language-divider" aria-hidden="true">→</div>
+
+        <div class="language-field">
+          <label for="targetLanguage">TRANSLATE INTO</label>
           <select id="targetLanguage" name="targetLanguage">
             <option value="es">Spanish</option>
             <option value="en">English</option>
@@ -56,82 +78,134 @@
             <option value="ja">Japanese</option>
           </select>
         </div>
+      </section>
+
+      <div class="workspace-grid">
+
+        <section class="panel camera-panel" aria-labelledby="scanner-heading">
+
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">LIVE CAMERA</p>
+              <h2 id="scanner-heading">Visual scanner</h2>
+            </div>
+
+            <span class="live-badge">
+              <span class="indicator-dot"></span>
+              <span id="cameraStatus" role="status" aria-live="polite">STANDBY</span>
+            </span>
+          </div>
+
+          <div class="camera-container">
+            <video
+              id="video"
+              autoplay
+              muted
+              playsinline
+              aria-label="Live camera feed"
+            ></video>
+
+            <canvas id="overlay" aria-hidden="true"></canvas>
+
+            <div class="camera-placeholder">
+              <div class="camera-placeholder-icon">◎</div>
+              <h3>Your camera workspace</h3>
+              <p>Start your camera to begin recognizing the world around you.</p>
+            </div>
+          </div>
+
+          <div class="camera-toolbar">
+            <div class="camera-hint">
+              <span class="indicator-dot"></span>
+              AI vision ready
+            </div>
+
+            <div class="camera-actions">
+              <button class="button button-secondary" id="stopCamera" type="button">
+                Stop camera
+              </button>
+
+              <button class="button button-primary" id="startCamera" type="button">
+                <span>▶</span> Start camera
+              </button>
+            </div>
+          </div>
+
+          <div class="status" id="status" role="status" aria-live="polite">
+            System ready. Start the camera to begin.
+          </div>
+
+        </section>
+
+        <aside class="panel results-panel" aria-labelledby="objects-heading">
+
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">AI RECOGNITION</p>
+              <h2 id="objects-heading">Detected objects</h2>
+            </div>
+            <span class="count-badge">LIVE</span>
+          </div>
+
+          <div id="objectResults" class="result-list" aria-live="polite">
+            <div class="empty">
+              <span class="empty-icon">◇</span>
+              <strong>Nothing detected yet</strong>
+              <span>Start your camera to identify objects around you.</span>
+            </div>
+          </div>
+
+          <div class="panel-note">
+            Powered by AI object recognition
+          </div>
+
+        </aside>
+
       </div>
-    </section>
 
-    <section class="panel" aria-labelledby="scanner-heading">
-      <h2 class="section-title" id="scanner-heading">◈ Live vision scanner</h2>
+      <section class="panel translation-panel" aria-labelledby="translation-heading">
 
-      <div class="camera-container">
-        <video
-          id="video"
-          autoplay
-          muted
-          playsinline
-          aria-label="Live camera feed"
-        ></video>
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">TEXT INTELLIGENCE</p>
+            <h2 id="translation-heading">Text recognition &amp; translation</h2>
+          </div>
 
-        <canvas id="overlay" aria-hidden="true"></canvas>
+          <span class="count-badge">OCR</span>
+        </div>
 
-        <div class="camera-corners" aria-hidden="true"></div>
-        <div class="scan-line" aria-hidden="true"></div>
-      </div>
+        <div class="translation-content">
+          <div class="translation-output">
+            <div class="output-label">TRANSLATED TEXT</div>
 
-      <div class="camera-status">
-        <span><span class="dot"></span>VISION SYSTEM</span>
-        <span id="cameraStatus" role="status" aria-live="polite">STANDBY</span>
-      </div>
+            <div id="ocrResult" class="ocr-output" aria-live="polite">
+              Your translated text will appear here after scanning.
+            </div>
+          </div>
 
-      <div class="buttons">
-        <button class="primary" id="startCamera" type="button">
-          ▶ Start scanner
-        </button>
+          <div class="translation-actions">
+            <button class="button button-secondary" id="scanText" type="button">
+              Scan camera text
+            </button>
 
-        <button class="stop" id="stopCamera" type="button">
-          ■ Stop camera
-        </button>
+            <button class="button button-primary" id="speakOCR" type="button">
+              ♫ Speak text
+            </button>
 
-        <button id="scanText" type="button">
-          ▤ Scan text
-        </button>
+            <button class="button button-secondary" id="readAll" type="button">
+              Read everything
+            </button>
+          </div>
+        </div>
 
-        <button id="readAll" type="button">
-          ◖ Read translation
-        </button>
-      </div>
+      </section>
 
-      <div class="status" id="status" role="status" aria-live="polite">
-        System ready. Start the camera to begin.
-      </div>
-    </section>
+      <footer class="footer">
+        <span>© 2026 VisionTranslate</span>
+        <span>Making the world easier to understand.</span>
+      </footer>
 
-    <section class="panel" aria-labelledby="objects-heading">
-      <h2 class="section-title" id="objects-heading">◈ Detected objects</h2>
-
-      <div id="objectResults" class="result-list" aria-live="polite">
-        <div class="empty">Waiting for visual data...</div>
-      </div>
-    </section>
-
-    <section class="panel" aria-labelledby="ocr-heading">
-      <h2 class="section-title" id="ocr-heading">
-        ◈ Text recognition &amp; translation
-      </h2>
-
-      <div id="ocrResult" class="ocr-output" aria-live="polite">
-        No text scanned yet.
-      </div>
-
-      <div class="buttons">
-        <button id="speakOCR" type="button">
-          🔊 Speak text
-        </button>
-      </div>
-    </section>
-  </main>
-
-  <footer>
-    VISIONTRANSLATE AI · FUTURE OF COMMUNICATION
-  </footer>
+    </main>
+  </div>
 </body>
 </html>

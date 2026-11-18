@@ -23,6 +23,8 @@ const scanButton = document.getElementById('scanText');
 const speakOCRButton = document.getElementById('speakOCR');
 const readAllButton = document.getElementById('readAll');
 
+const cameraPlaceholder = document.querySelector('.camera-placeholder');
+
 // ==========================================
 // APPLICATION STATE
 // ==========================================
@@ -32,7 +34,6 @@ let model = null;
 let scanTimer = null;
 let scanning = false;
 let detecting = false;
-
 let predictions = [];
 let ocrTranslation = '';
 
@@ -61,6 +62,15 @@ const SPEECH_LANGUAGES = {
 };
 
 const OCR_LANGUAGES = {
+  eng: 'eng',
+  spa: 'spa',
+  fra: 'fra',
+  deu: 'deu',
+  ita: 'ita',
+  por: 'por'
+};
+
+const TRANSLATION_LANGUAGES = {
   eng: 'en',
   spa: 'es',
   fra: 'fr',
@@ -79,6 +89,10 @@ function setStatus(message) {
 
 function setCameraStatus(message) {
   cameraStatus.textContent = message;
+}
+
+function setCameraPlaceholder(visible) {
+  cameraPlaceholder.hidden = !visible;
 }
 
 // ==========================================
@@ -125,10 +139,13 @@ function stopCamera() {
 
   predictions = [];
 
+  setCameraPlaceholder(true);
   renderObjects([]);
 
   setCameraStatus('STANDBY');
   setStatus('Camera stopped.');
+
+  startButton.disabled = false;
 }
 
 // ==========================================
@@ -139,7 +156,7 @@ async function loadDetectionModel() {
   if (model) return model;
 
   if (typeof window.cocoSsd === 'undefined') {
-    throw new Error('Object detection library could not be loaded.');
+    throw new Error('Object detection library could not be loaded. Check your internet connection.');
   }
 
   setStatus('Loading AI vision model...');
@@ -209,10 +226,12 @@ async function translateObject(item) {
     );
 
     item.translated = translated;
+
     objectTranslationCache.set(key, translated);
 
   } catch (error) {
     console.error('Object translation error:', error);
+
     item.translated = item.class;
   }
 }
@@ -249,6 +268,9 @@ async function detectObjects() {
 
   } catch (error) {
     console.error('Object detection error:', error);
+
+    setStatus('Object recognition encountered an error. Retrying...');
+
   } finally {
     detecting = false;
   }
@@ -263,23 +285,22 @@ function drawPredictions() {
 
   for (const item of predictions) {
     const [x, y, width, height] = item.bbox;
-
     const label = item.translated || item.class;
 
     ctx.lineWidth = 3;
-    ctx.strokeStyle = '#00f5d4';
-    ctx.shadowColor = '#00f5d4';
-    ctx.shadowBlur = 12;
+    ctx.strokeStyle = '#9588ff';
+    ctx.shadowColor = '#9588ff';
+    ctx.shadowBlur = 8;
 
     ctx.strokeRect(x, y, width, height);
 
     ctx.shadowBlur = 0;
-    ctx.font = 'bold 18px Arial';
+    ctx.font = 'bold 16px Arial';
 
     const labelWidth = ctx.measureText(label).width + 18;
     const labelY = Math.max(25, y - 9);
 
-    ctx.fillStyle = 'rgba(0,15,25,.88)';
+    ctx.fillStyle = 'rgba(25, 25, 45, 0.88)';
 
     ctx.fillRect(
       x,
@@ -288,17 +309,7 @@ function drawPredictions() {
       27
     );
 
-    ctx.strokeStyle = '#00f5d4';
-    ctx.lineWidth = 1;
-
-    ctx.strokeRect(
-      x,
-      labelY - 23,
-      labelWidth,
-      27
-    );
-
-    ctx.fillStyle = '#00f5d4';
+    ctx.fillStyle = '#ffffff';
 
     ctx.fillText(
       label,
@@ -314,8 +325,13 @@ function drawPredictions() {
 
 function renderObjects(items) {
   if (!items.length) {
-    objectResults.innerHTML =
-      '<div class="empty">No objects detected yet. Point the camera at something.</div>';
+    objectResults.innerHTML = `
+      <div class="empty">
+        <span class="empty-icon">◇</span>
+        <strong>Nothing detected yet</strong>
+        <span>Point your camera at something to identify it.</span>
+      </div>
+    `;
 
     return;
   }
@@ -344,7 +360,7 @@ function renderObjects(items) {
 
     button.className = 'speak-button';
     button.type = 'button';
-    button.textContent = '🔊';
+    button.textContent = '♫';
     button.setAttribute('aria-label', 'Speak translation');
 
     button.addEventListener('click', () => {
@@ -362,7 +378,10 @@ function renderObjects(items) {
 // ==========================================
 
 function speech(text) {
-  if (!text) return;
+  if (!text) {
+    setStatus('There is no translated text to read yet.');
+    return;
+  }
 
   if (!('speechSynthesis' in window)) {
     setStatus('Speech is not supported in this browser.');
@@ -415,6 +434,8 @@ async function startCamera() {
 
     scanning = true;
 
+    setCameraPlaceholder(false);
+
     setCameraStatus('SCANNING');
     setStatus('Camera active. Detecting objects...');
 
@@ -452,7 +473,7 @@ async function scanWrittenText() {
   }
 
   if (typeof window.Tesseract === 'undefined') {
-    setStatus('OCR library could not be loaded.');
+    setStatus('OCR library could not be loaded. Check your internet connection.');
     return;
   }
 
@@ -466,7 +487,9 @@ async function scanWrittenText() {
     snapshot.width = video.videoWidth;
     snapshot.height = video.videoHeight;
 
-    snapshot.getContext('2d').drawImage(
+    const snapshotContext = snapshot.getContext('2d');
+
+    snapshotContext.drawImage(
       video,
       0,
       0,
@@ -476,7 +499,7 @@ async function scanWrittenText() {
 
     const result = await window.Tesseract.recognize(
       snapshot,
-      sourceLanguage.value
+      OCR_LANGUAGES[sourceLanguage.value]
     );
 
     const text = result.data.text.trim();
@@ -490,11 +513,7 @@ async function scanWrittenText() {
       return;
     }
 
-    const sourceCode = OCR_LANGUAGES[sourceLanguage.value];
-
-    if (!sourceCode) {
-      throw new Error('Unsupported OCR source language.');
-    }
+    const sourceCode = TRANSLATION_LANGUAGES[sourceLanguage.value];
 
     setStatus('Translating recognized text...');
 
@@ -536,6 +555,8 @@ function handleLanguageChange() {
 
   ocrResult.textContent =
     'Target language changed. Scan text again.';
+
+  renderObjects(predictions);
 
   if (scanning) {
     detectObjects();
@@ -601,6 +622,7 @@ window.addEventListener('beforeunload', () => {
 // APPLICATION READY
 // ==========================================
 
+setCameraPlaceholder(true);
 setStatus('System ready. Start the camera to begin.');
 setCameraStatus('STANDBY');
 
