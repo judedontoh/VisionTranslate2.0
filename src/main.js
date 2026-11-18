@@ -6,6 +6,7 @@ import './styles/main.css';
 // ==========================================
 
 const video = document.getElementById('video');
+const capturedImage = document.getElementById('capturedImage');
 const canvas = document.getElementById('overlay');
 const ctx = canvas.getContext('2d');
 
@@ -22,6 +23,9 @@ const clearHistoryButton = document.getElementById('clearHistory');
 
 const startButton = document.getElementById('startCamera');
 const stopButton = document.getElementById('stopCamera');
+const captureButton = document.getElementById('captureImage');
+const retakeButton = document.getElementById('retakeImage');
+const downloadButton = document.getElementById('downloadImage');
 const scanButton = document.getElementById('scanText');
 const speakOCRButton = document.getElementById('speakOCR');
 const readAllButton = document.getElementById('readAll');
@@ -33,6 +37,7 @@ const cameraPlaceholder = document.querySelector('.camera-placeholder');
 // ==========================================
 
 let stream = null;
+let capturedImageData = null;
 let model = null;
 let scanTimer = null;
 let scanning = false;
@@ -138,6 +143,17 @@ function stopCamera() {
 
   video.srcObject = null;
 
+  capturedImageData = null;
+  capturedImage.src = '';
+
+  capturedImage.style.display = 'none';
+  video.style.display = '';
+  canvas.style.display = '';
+
+  captureButton.disabled = true;
+  retakeButton.hidden = true;
+  downloadButton.hidden = true;
+
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   predictions = [];
@@ -149,6 +165,92 @@ function stopCamera() {
   setStatus('Camera stopped.');
 
   startButton.disabled = false;
+}
+
+
+function captureCameraImage() {
+  if (!stream || video.readyState < 2) {
+    setStatus('Start the camera before capturing an image.');
+    return;
+  }
+
+  const snapshot = document.createElement('canvas');
+
+  snapshot.width = video.videoWidth;
+  snapshot.height = video.videoHeight;
+
+  const snapshotContext = snapshot.getContext('2d');
+
+  snapshotContext.drawImage(
+    video,
+    0,
+    0,
+    snapshot.width,
+    snapshot.height
+  );
+
+  capturedImageData = snapshot.toDataURL('image/png');
+  capturedImage.src = capturedImageData;
+  capturedImage.hidden = false;
+
+  video.style.display = 'none';
+  canvas.style.display = 'none';
+  capturedImage.style.display = 'block';
+
+  if (scanTimer) {
+    clearInterval(scanTimer);
+    scanTimer = null;
+  }
+
+  captureButton.disabled = true;
+  retakeButton.hidden = false;
+  downloadButton.hidden = false;
+
+  setStatus('Image captured. You can now scan the text or retake the image.');
+}
+
+function retakeCameraImage() {
+  capturedImageData = null;
+  capturedImage.src = '';
+  capturedImage.hidden = true;
+
+  capturedImage.style.display = 'none';
+  video.style.display = '';
+  canvas.style.display = '';
+
+  captureButton.disabled = false;
+  retakeButton.hidden = true;
+  downloadButton.hidden = true;
+
+  if (scanning && !scanTimer) {
+    scanTimer = setInterval(
+      detectObjects,
+      CONFIG.detectionInterval
+    );
+
+    detectObjects();
+  }
+
+  setStatus('Live camera resumed.');
+}
+
+
+function downloadCapturedImage() {
+  if (!capturedImageData) {
+    setStatus('Capture an image before downloading.');
+    return;
+  }
+
+  const link = document.createElement('a');
+
+  link.href = capturedImageData;
+  link.download = `visiontranslate-capture-${Date.now()}.png`;
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  setStatus('Captured image downloaded successfully.');
 }
 
 // ==========================================
@@ -457,6 +559,9 @@ async function startCamera() {
 
     scanning = true;
 
+    captureButton.disabled = false;
+    retakeButton.hidden = true;
+
     setCameraPlaceholder(false);
 
     setCameraStatus('SCANNING');
@@ -489,8 +594,9 @@ async function startCamera() {
 // OCR — TEXT RECOGNITION
 // ==========================================
 
+
 async function scanWrittenText() {
-  if (!stream || video.readyState < 2) {
+  if (!stream || (!capturedImageData && video.readyState < 2)) {
     setStatus('Start the camera first.');
     return;
   }
@@ -505,30 +611,38 @@ async function scanWrittenText() {
 
     setStatus('Reading text with OCR...');
 
-    const snapshot = document.createElement('canvas');
+    let imageToScan;
 
-    snapshot.width = video.videoWidth;
-    snapshot.height = video.videoHeight;
+    if (capturedImageData) {
+      imageToScan = capturedImageData;
+    } else {
+      const snapshot = document.createElement('canvas');
 
-    const snapshotContext = snapshot.getContext('2d');
+      snapshot.width = video.videoWidth;
+      snapshot.height = video.videoHeight;
 
-    snapshotContext.drawImage(
-      video,
-      0,
-      0,
-      snapshot.width,
-      snapshot.height
-    );
+      const snapshotContext = snapshot.getContext('2d');
+
+      snapshotContext.drawImage(
+        video,
+        0,
+        0,
+        snapshot.width,
+        snapshot.height
+      );
+
+      imageToScan = snapshot;
+    }
 
     const result = await window.Tesseract.recognize(
-      snapshot,
+      imageToScan,
       OCR_LANGUAGES[sourceLanguage.value]
     );
 
     const text = result.data.text.trim();
 
     recognizedText.textContent = text;
-    
+
     if (!text) {
       recognizedText.textContent = 'No text recognized.';
       ocrResult.textContent = 'No readable text found. Try moving closer.';
@@ -537,6 +651,7 @@ async function scanWrittenText() {
 
       return;
     }
+
     const sourceCode = TRANSLATION_LANGUAGES[sourceLanguage.value];
 
     setStatus('Translating recognized text...');
@@ -695,6 +810,12 @@ function handleLanguageChange() {
 startButton.addEventListener('click', startCamera);
 
 stopButton.addEventListener('click', stopCamera);
+
+captureButton.addEventListener('click', captureCameraImage);
+
+retakeButton.addEventListener('click', retakeCameraImage);
+
+downloadButton.addEventListener('click', downloadCapturedImage);
 
 scanButton.addEventListener('click', scanWrittenText);
 

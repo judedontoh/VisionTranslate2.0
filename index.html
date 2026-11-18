@@ -105,6 +105,13 @@
               aria-label="Live camera feed"
             ></video>
 
+            <img
+              id="capturedImage"
+              class="captured-image"
+              alt="Captured camera image"
+              hidden
+            />
+
             <canvas id="overlay" aria-hidden="true"></canvas>
 
             <div class="camera-placeholder">
@@ -114,26 +121,39 @@
             </div>
           </div>
 
-          <div class="camera-toolbar">
-            <div class="camera-hint">
-              <span class="indicator-dot"></span>
-              AI vision ready
-            </div>
+          
+<div class="camera-toolbar">
+  <div class="camera-hint">
+    <span class="indicator-dot"></span>
+    AI vision ready
+  </div>
 
-            <div class="camera-actions">
-              <button class="button button-secondary" id="stopCamera" type="button">
-                Stop camera
-              </button>
+  <div class="camera-actions">
+    <button class="button button-secondary" id="stopCamera" type="button">
+      Stop camera
+    </button>
 
-              <button class="button button-primary" id="startCamera" type="button">
-                <span>▶</span> Start camera
-              </button>
-            </div>
-          </div>
+    <button class="button button-primary" id="startCamera" type="button">
+      <span>▶</span> Start camera
+    </button>
 
-          <div class="status" id="status" role="status" aria-live="polite">
-            System ready. Start the camera to begin.
-          </div>
+    <button class="button button-primary" id="captureImage" type="button" disabled>
+      Capture image
+    </button>
+
+    <button class="button button-secondary" id="retakeImage" type="button" hidden>
+      Retake
+    </button>
+
+    <button class="button button-secondary" id="downloadImage" type="button" hidden>
+      Download image
+    </button>
+  </div>
+</div>
+
+<div class="status" id="status" role="status" aria-live="polite">
+  System ready. Start the camera to begin.
+</div>
 
         </section>
 
