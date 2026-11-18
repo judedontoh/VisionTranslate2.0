@@ -1,0 +1,27 @@
+{
+  "name": "visiontranslate2.0",
+  "version": "1.0.0",
+  "description": "VisionTranslate is a free, browser-based camera translation application designed to help people understand the world around them.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/judedontoh/VisionTranslate2.0.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/judedontoh/VisionTranslate2.0/issues"
+  },
+  "homepage": "https://github.com/judedontoh/VisionTranslate2.0#readme",
+  "devDependencies": {
+    "vite": "^8.3.8"
+  }
+}
