@@ -181,28 +181,48 @@ async function translateText(text, from, to) {
 
   if (from === to) return cleanText;
 
-  const params = new URLSearchParams({
-    q: cleanText.slice(0, 450),
-    langpair: `${from}|${to}`
-  });
+  const maxLength = 450;
+  const chunks = [];
 
-  const response = await fetch(
-    `${CONFIG.translationEndpoint}?${params}`
-  );
-
-  if (!response.ok) {
-    throw new Error('Translation service unavailable.');
+  // Split long text into smaller pieces.
+  for (let i = 0; i < cleanText.length; i += maxLength) {
+    chunks.push(cleanText.slice(i, i + maxLength));
   }
 
-  const data = await response.json();
+  const translations = [];
 
-  const translated = data.responseData?.translatedText;
+  for (const chunk of chunks) {
+    const params = new URLSearchParams({
+      q: chunk,
+      langpair: `${from}|${to}`
+    });
 
-  if (!translated) {
-    throw new Error('No translation was returned.');
+    const response = await fetch(
+      `${CONFIG.translationEndpoint}?${params}`
+    );
+
+    if (!response.ok) {
+      throw new Error('Translation service unavailable.');
+    }
+
+    const data = await response.json();
+
+    if (data.responseStatus !== 200) {
+      throw new Error(
+        data.responseDetails || 'Translation request failed.'
+      );
+    }
+
+    const translated = data.responseData?.translatedText;
+
+    if (!translated) {
+      throw new Error('No translation was returned.');
+    }
+
+    translations.push(translated);
   }
 
-  return translated;
+  return translations.join(' ');
 }
 
 // ==========================================
