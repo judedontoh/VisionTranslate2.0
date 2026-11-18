@@ -513,11 +513,18 @@ h1 span {
   letter-spacing: 1px;
 }
 
+
 .ocr-output {
   color: var(--text);
   font-size: 14px;
   line-height: 1.7;
+  white-space: pre-wrap;
   overflow-wrap: anywhere;
+  word-break: normal;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  display: block;
 }
 
 .footer {

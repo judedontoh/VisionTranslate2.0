@@ -343,6 +343,7 @@ function handleImageUpload(event) {
   reader.readAsDataURL(file);
 }
 
+
 async function scanUploadedImageText() {
   if (!uploadedImageData) {
     setStatus('Please upload an image first.');
@@ -359,10 +360,25 @@ async function scanUploadedImageText() {
 
     setStatus('Reading text from uploaded image...');
 
-    const result = await window.Tesseract.recognize(
-      uploadedImage,
-      OCR_LANGUAGES[sourceLanguage.value]
-    );
+    // STEP 1: Recognize the original text.
+    let result;
+
+    try {
+      result = await window.Tesseract.recognize(
+        uploadedImage,
+        OCR_LANGUAGES[sourceLanguage.value]
+      );
+
+    } catch (error) {
+      console.error('Uploaded image OCR error:', error);
+
+      recognizedText.textContent = 'Text recognition failed.';
+      ocrResult.textContent = 'Unable to recognize text. Please try again.';
+
+      setStatus(`OCR error: ${error.message}`);
+
+      return;
+    }
 
     const text = result.data.text.trim();
 
@@ -371,32 +387,47 @@ async function scanUploadedImageText() {
     if (!text) {
       recognizedText.textContent = 'No text recognized.';
       ocrResult.textContent = 'No readable text found. Try another image.';
+
       setStatus('No text detected in the uploaded image.');
+
       return;
     }
 
+    // STEP 2: Translate the recognized text separately.
     const sourceCode = TRANSLATION_LANGUAGES[sourceLanguage.value];
 
     setStatus('Translating recognized text...');
 
-    ocrTranslation = await translateText(
-      text,
-      sourceCode,
-      targetLanguage.value
-    );
+    try {
+      const translated = await translateWithMemory(
+        text,
+        sourceCode,
+        targetLanguage.value
+      );
 
-    ocrResult.textContent = ocrTranslation;
+      ocrTranslation = translated;
 
-    saveTranslationToHistory(text, ocrTranslation);
+      ocrResult.textContent = translated;
 
-    setStatus('Image text translated successfully.');
+      saveTranslationToHistory(text, translated);
+
+      setStatus('Image text translated successfully.');
+
+    } catch (error) {
+      console.error('Uploaded image translation error:', error);
+
+      ocrTranslation = '';
+
+      ocrResult.textContent =
+        'Translation temporarily unavailable. Your original recognized text has been preserved. Please try again.';
+
+      setStatus(`Translation failed: ${error.message}`);
+    }
 
   } catch (error) {
-    console.error('Uploaded image scanning error:', error);
+    console.error('Unexpected uploaded image scanning error:', error);
 
-    setStatus(`Image scan error: ${error.message}`);
-
-    ocrResult.textContent = 'Unable to scan or translate this image.';
+    setStatus(`Image scanning error: ${error.message}`);
 
   } finally {
     scanUploadedImageButton.disabled = false;
@@ -440,6 +471,7 @@ async function loadDetectionModel() {
 // ==========================================
 
 
+
 async function translateText(text, from, to) {
   const cleanText = text.trim();
 
@@ -470,26 +502,74 @@ async function translateText(text, from, to) {
       q: chunk
     });
 
-    const response = await fetch(
-      `https://translate.googleapis.com/translate_a/single?${params}`
-    );
+    const url =
+      `https://translate.googleapis.com/translate_a/single?${params}`;
 
-    if (!response.ok) {
-      throw new Error('Google translation service unavailable.');
+    let translated = '';
+    let lastError = null;
+
+    // Try translation up to 3 times.
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          const retryable =
+            response.status === 429 ||
+            response.status >= 500;
+
+          if (!retryable) {
+            throw new Error(
+              `Google translation failed (HTTP ${response.status}).`
+            );
+          }
+
+          throw new Error(
+            `Temporary Google service error (HTTP ${response.status}).`
+          );
+        }
+
+        const data = await response.json();
+
+        if (!Array.isArray(data) || !Array.isArray(data[0])) {
+          throw new Error('Invalid translation response.');
+        }
+
+        translated = data[0]
+          .map(segment => segment?.[0] || '')
+          .join('');
+
+        if (!translated) {
+          throw new Error('No translation was returned.');
+        }
+
+        lastError = null;
+        break;
+
+      } catch (error) {
+        lastError = error;
+
+        console.warn(
+          `Translation attempt ${attempt} failed:`,
+          error.message
+        );
+
+        if (attempt < 3) {
+          const delay = attempt * 1000;
+
+          await new Promise(resolve =>
+            setTimeout(resolve, delay)
+          );
+        }
+      }
     }
 
-    const data = await response.json();
-
-    if (!Array.isArray(data) || !Array.isArray(data[0])) {
-      throw new Error('Invalid translation response.');
-    }
-
-    const translated = data[0]
-      .map(segment => segment?.[0] || '')
-      .join('');
-
-    if (!translated) {
-      throw new Error('No translation was returned.');
+    if (lastError || !translated) {
+      throw new Error(
+        `Translation failed after 3 attempts: ${
+          lastError?.message || 'No translation returned.'
+        }`
+      );
     }
 
     translations.push(translated);
@@ -497,6 +577,34 @@ async function translateText(text, from, to) {
 
   return translations.join(' ');
 }
+
+
+async function translateWithMemory(text, from, to) {
+  try {
+    // Try Google Translate first.
+    const translated = await translateText(text, from, to);
+
+    // Save successful translations for future use.
+    saveToTranslationMemory(text, translated, from, to);
+
+    return translated;
+
+  } catch (error) {
+    console.warn('Google Translate unavailable. Checking saved memory...');
+
+    // Look for an exact translation previously saved.
+    const remembered = getFromTranslationMemory(text, from, to);
+
+    if (remembered) {
+      console.log('Using a saved translation from memory.');
+      return remembered;
+    }
+
+    // Neither Google nor memory could provide a translation.
+    throw error;
+  }
+}
+
 
 // ==========================================
 // OBJECT TRANSLATION
@@ -512,7 +620,7 @@ async function translateObject(item) {
   }
 
   try {
-    const translated = await translateText(
+    const translated = await translateWithMemory(
       item.class,
       'en',
       target
@@ -763,6 +871,7 @@ async function startCamera() {
 // ==========================================
 
 
+
 async function scanWrittenText() {
   if (!stream || (!capturedImageData && video.readyState < 2)) {
     setStatus('Start the camera first.');
@@ -802,10 +911,24 @@ async function scanWrittenText() {
       imageToScan = snapshot;
     }
 
-    const result = await window.Tesseract.recognize(
-      imageToScan,
-      OCR_LANGUAGES[sourceLanguage.value]
-    );
+    // STEP 1: Recognize the original text.
+    let result;
+
+    try {
+      result = await window.Tesseract.recognize(
+        imageToScan,
+        OCR_LANGUAGES[sourceLanguage.value]
+      );
+    } catch (error) {
+      console.error('OCR error:', error);
+
+      recognizedText.textContent = 'Text recognition failed.';
+      ocrResult.textContent = 'Unable to recognize text. Please try again.';
+
+      setStatus(`OCR error: ${error.message}`);
+
+      return;
+    }
 
     const text = result.data.text.trim();
 
@@ -820,28 +943,36 @@ async function scanWrittenText() {
       return;
     }
 
+    // STEP 2: Translate the recognized text separately.
     const sourceCode = TRANSLATION_LANGUAGES[sourceLanguage.value];
 
     setStatus('Translating recognized text...');
 
-    ocrTranslation = await translateText(
-      text,
-      sourceCode,
-      targetLanguage.value
-    );
+    try {
+      const translated = await translateWithMemory(
+        text,
+        sourceCode,
+        targetLanguage.value
+      );
 
-    ocrResult.textContent = ocrTranslation;
-    saveTranslationToHistory(text, ocrTranslation);
+      ocrTranslation = translated;
 
-    setStatus('Text translated successfully.');
+      ocrResult.textContent = translated;
 
-  } catch (error) {
-    console.error('OCR error:', error);
+      saveTranslationToHistory(text, translated);
 
-    setStatus(`Text scan error: ${error.message}`);
+      setStatus('Text translated successfully.');
 
-    ocrResult.textContent =
-      'Unable to scan or translate text.';
+    } catch (error) {
+      console.error('Translation error:', error);
+
+      ocrTranslation = '';
+
+      ocrResult.textContent =
+        'Translation temporarily unavailable. Your original recognized text has been preserved. Please try again.';
+
+      setStatus(`Translation failed: ${error.message}`);
+    }
 
   } finally {
     scanButton.disabled = false;
@@ -851,6 +982,7 @@ async function scanWrittenText() {
 
 
 const HISTORY_STORAGE_KEY = 'visionTranslateHistory';
+const MEMORY_STORAGE_KEY = 'visionTranslateMemory';
 
 let translationHistoryItems = [];
 
@@ -864,6 +996,59 @@ function loadTranslationHistory() {
     console.error('Could not load translation history:', error);
     return [];
   }
+}
+
+
+let translationMemory = {};
+
+function loadTranslationMemory() {
+  try {
+    const saved = localStorage.getItem(MEMORY_STORAGE_KEY);
+    const parsed = saved ? JSON.parse(saved) : {};
+
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed
+      : {};
+
+  } catch (error) {
+    console.error('Could not load translation memory:', error);
+    return {};
+  }
+}
+
+
+function saveToTranslationMemory(original, translated, from, to) {
+  if (!original || !translated || !from || !to) return;
+
+  const key = `${from}|${to}|${original.trim().toLowerCase()}`;
+
+  translationMemory[key] = {
+    original: original.trim(),
+    translated: translated.trim(),
+    from,
+    to,
+    savedAt: new Date().toISOString()
+  };
+
+  try {
+    localStorage.setItem(
+      MEMORY_STORAGE_KEY,
+      JSON.stringify(translationMemory)
+    );
+  } catch (error) {
+    console.error('Could not save translation memory:', error);
+  }
+}
+
+
+function getFromTranslationMemory(original, from, to) {
+  if (!original || !from || !to) return null;
+
+  const key = `${from}|${to}|${original.trim().toLowerCase()}`;
+
+  const remembered = translationMemory[key];
+
+  return remembered ? remembered.translated : null;
 }
 
 function renderTranslationHistory() {
@@ -941,6 +1126,7 @@ function clearTranslationHistory() {
 }
 
 translationHistoryItems = loadTranslationHistory();
+translationMemory = loadTranslationMemory();
 renderTranslationHistory();
 
 clearHistoryButton.addEventListener(
