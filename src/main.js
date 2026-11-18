@@ -17,6 +17,8 @@ const cameraStatus = document.getElementById('cameraStatus');
 const objectResults = document.getElementById('objectResults');
 const ocrResult = document.getElementById('ocrResult');
 const recognizedText = document.getElementById('recognizedText');
+const translationHistory = document.getElementById('translationHistory');
+const clearHistoryButton = document.getElementById('clearHistory');
 
 const startButton = document.getElementById('startCamera');
 const stopButton = document.getElementById('stopCamera');
@@ -546,6 +548,7 @@ async function scanWrittenText() {
     );
 
     ocrResult.textContent = ocrTranslation;
+    saveTranslationToHistory(text, ocrTranslation);
 
     setStatus('Text translated successfully.');
 
@@ -561,6 +564,106 @@ async function scanWrittenText() {
     scanButton.disabled = false;
   }
 }
+
+
+
+const HISTORY_STORAGE_KEY = 'visionTranslateHistory';
+
+let translationHistoryItems = [];
+
+function loadTranslationHistory() {
+  try {
+    const saved = localStorage.getItem(HISTORY_STORAGE_KEY);
+    const parsed = saved ? JSON.parse(saved) : [];
+
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error('Could not load translation history:', error);
+    return [];
+  }
+}
+
+function renderTranslationHistory() {
+  translationHistory.innerHTML = '';
+
+  if (translationHistoryItems.length === 0) {
+    const emptyMessage = document.createElement('p');
+    emptyMessage.className = 'history-empty';
+    emptyMessage.textContent = 'Your translations will appear here.';
+    translationHistory.appendChild(emptyMessage);
+    return;
+  }
+
+  translationHistoryItems.forEach((item, index) => {
+    const card = document.createElement('div');
+    card.className = 'history-item';
+
+    const original = document.createElement('p');
+    original.textContent = item.original;
+
+    const translated = document.createElement('p');
+    translated.textContent = item.translated;
+
+    const date = document.createElement('small');
+    date.textContent = new Date(item.date).toLocaleString();
+
+    const viewButton = document.createElement('button');
+    viewButton.type = 'button';
+    viewButton.className = 'button button-secondary';
+    viewButton.textContent = 'View translation';
+
+    viewButton.addEventListener('click', () => {
+      recognizedText.textContent = item.original;
+      ocrResult.textContent = item.translated;
+      ocrTranslation = item.translated;
+    });
+
+    card.append(original, translated, date, viewButton);
+    translationHistory.appendChild(card);
+  });
+}
+
+function saveTranslationToHistory(original, translated) {
+  const entry = {
+    original,
+    translated,
+    date: new Date().toISOString()
+  };
+
+  translationHistoryItems.unshift(entry);
+  translationHistoryItems = translationHistoryItems.slice(0, 20);
+
+  try {
+    localStorage.setItem(
+      HISTORY_STORAGE_KEY,
+      JSON.stringify(translationHistoryItems)
+    );
+  } catch (error) {
+    console.error('Could not save translation history:', error);
+  }
+
+  renderTranslationHistory();
+}
+
+function clearTranslationHistory() {
+  translationHistoryItems = [];
+
+  try {
+    localStorage.removeItem(HISTORY_STORAGE_KEY);
+  } catch (error) {
+    console.error('Could not clear translation history:', error);
+  }
+
+  renderTranslationHistory();
+}
+
+translationHistoryItems = loadTranslationHistory();
+renderTranslationHistory();
+
+clearHistoryButton.addEventListener(
+  'click',
+  clearTranslationHistory
+);
 
 // ==========================================
 // LANGUAGE SETTINGS
